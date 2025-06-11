@@ -1,0 +1,28 @@
+services:
+  eti-sync:
+    image: ghcr.io/poeschl/peti-server:latest
+    restart: unless-stopped
+    container_name: sync-server-control
+    depends_on:
+      - resilio
+    volumes:
+      - "./eti-config.conf:/root/eti-config.conf"
+      - "sync-volume:/sync:z"
+
+  resilio:
+    image: linuxserver/resilio-sync:2.8.1
+    restart: unless-stopped
+    container_name: sync-server-resilio
+    ports:
+      - 8080:8080
+      - 55555:55555
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: Europe/Berlin
+    volumes:
+      - "./resilio-config.conf:/config/sync.conf"
+      - "sync-volume:/sync:z"
+
+volumes:
+  sync-volume:

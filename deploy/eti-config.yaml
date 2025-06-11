@@ -1,0 +1,17 @@
+# pETI Sync Server Configuration
+
+resilio_auth:
+  user: user
+  password: dummy
+
+resilio_host: resilio:8080
+resilio_sync_dir: /sync
+resilio_sync_options: "force=1&use_tracker=1&search_lan=1&use_dht=1&use_hosts=1&use_relay_server=1&overwrite_changes=1&folder_deletetotrash=0&use_sync_trash=0"
+
+# Static folder keys
+# Add your own folder, if needed. the default will be sufficient for the eti sync-server
+folders:
+  eti_launcher:
+    secret: "BICDWADB4KCVNR6FCAGYTHEKZBYVUGTZX"
+  eti_sync_server:
+    secret: "BOS2KKF2RFQRQGKCC5U2YQNIWLPAQKHWY"
