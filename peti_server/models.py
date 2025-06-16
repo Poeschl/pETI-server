@@ -5,19 +5,20 @@ Contains the configuration and sync folder classes for the sync server.
 """
 
 import logging
-import os
 import sys
-import shutil
-import yaml
-import requests
 from enum import Enum
-from pathlib import Path
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict
+
+import requests
+import yaml
 
 # API URL templates with named placeholders
 API_URL_BASE = "http://{host}/api?method={method}"
 API_FOLDER_URL = API_URL_BASE + "&dir={dir}&secret={secret}&{options}"
 API_SIMPLE_URL = API_URL_BASE + "&dir={dir}&{options}"
+
+ETI_LAUNCHER_DATABASE_PATH = "eti_launcher/update/game.db"
+LOCAL_DB_NAME = "game.db"
 
 
 class ApiMethod(Enum):
@@ -34,10 +35,13 @@ class Configuration:
     Provides access to configuration values in a structured manner.
     """
 
-    def __init__(self, config_path: str = "/root/eti-config.yaml"):
+    def __init__(self,
+                 config_path: str = "/root/eti-config.yaml",
+                 keep_discarded_games: bool = False):
         """Initialize configuration by loading from the specified path"""
         self._config = load_config(config_path)
         self._yaml = self._config.get('_yaml', {})
+        self.keep_discarded_games = keep_discarded_games
 
     @property
     def user(self) -> str:
@@ -58,6 +62,11 @@ class Configuration:
     def sync_dir(self) -> str:
         """Get synchronization directory path"""
         return self._config.get('resilio_sync_dir', '')
+
+    @property
+    def data_dir(self) -> str:
+        """Get data directory path"""
+        return self._config.get('data_dir', '')
 
     @property
     def sync_options(self) -> str:
