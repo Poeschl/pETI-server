@@ -74,15 +74,22 @@ def update_game_folders(config: Configuration) -> None:
         system_folders.append(
             SyncFolder(config, folder_name, secret=values.get('secret', ''))),
 
-    logging.info("Add/Updated system folders...")
+    logging.info("Add/Updated system tools...")
     # Sync the system folders
     for folder in system_folders:
         folder.sync()
 
     # Process all game folders
-    logging.info("Add/Updated game folders...")
-    game_folders = get_games_from_db(config, database)
+    logging.info("Prepare lists of games...")
 
+    allow_list = get_games_from_db(config, database)
+    deny_list = get_discarded_from_db(config, database)
+
+    logging.info(f"Found {len(allow_list)} allowed games to sync.")
+    logging.info(
+        f"Found {len(deny_list)} discarded games to remove if existing.")
+
+    logging.info("Synchronizing allowed games...")
     with concurrent.futures.ThreadPoolExecutor() as executor:
 
         def process_folder(folder):
@@ -93,7 +100,7 @@ def update_game_folders(config: Configuration) -> None:
 
         # Submit all folders for parallel processing
         futures = [
-            executor.submit(process_folder, folder) for folder in game_folders
+            executor.submit(process_folder, folder) for folder in allow_list
         ]
 
         # Wait for all tasks to complete
@@ -102,14 +109,13 @@ def update_game_folders(config: Configuration) -> None:
                 folder_name = future.result()
                 logging.debug(f"[{folder_name}] completed")
             except Exception as e:
-                logging.error(f"Error processing folder: {e}")
+                logging.error(f"Error processing: {e}")
 
     if not config.keep_discarded_games:
-        logging.info("Removing discarded game folders...")
-        removed_folders = get_discarded_from_db(config, database)
+        logging.info("Removing denied games...")
 
         # Remove discarded folders
-        for folder in removed_folders:
+        for folder in deny_list:
             logging.info(f"Removing {folder.name} ({folder.secret})...")
             folder.remove()
 
@@ -118,7 +124,7 @@ def update_game_folders(config: Configuration) -> None:
             if os.path.exists(folder_path):
                 shutil.rmtree(folder_path)
 
-    logging.info("Game folders updated on sync server.")
+    logging.info("Games synchronized")
 
 
 def cleanup(config: Configuration) -> None:
