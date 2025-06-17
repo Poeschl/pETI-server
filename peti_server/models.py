@@ -159,7 +159,7 @@ class SyncFolder:
             if method == ApiMethod.REMOVE_FOLDER:
                 action = "removed"
             elif method == ApiMethod.ADD_FOLDER:
-                action = "added/updated"
+                action = "added or updated"
             elif method == ApiMethod.SET_FOLDER_PREFS:
                 action = "preferences updated"
             else:
@@ -167,15 +167,16 @@ class SyncFolder:
 
             json_response = response.json()
             sync_message = json_response.get('message', '')
-            sync_error = json_response.get('error', '')
+            sync_error: int = json_response.get('error', 0)
 
             # Map some error codes to more readable messages
-            if sync_error == '3':
+            if sync_error == 3:
                 sync_message = "Folder is not known"
 
-            logging.info(
-                f"Folder '{self.name}' {action}. Errorcode: {sync_error} - '{sync_message}'"
-            )
+            log_message = f"[{self.name}] {action}"
+            if sync_error != 0:
+                log_message += f": '{sync_message}' ({sync_error})"
+            logging.info(log_message)
             return True
 
         except requests.exceptions.RequestException as e:

@@ -6,6 +6,8 @@ It handles starting, stopping, cleaning up, and updating synchronization keys.
 """
 
 import argparse
+import concurrent
+import concurrent.futures
 import logging
 import os
 import shutil
@@ -80,12 +82,27 @@ def update_game_folders(config: Configuration) -> None:
     # Process all game folders
     logging.info("Add/Updated game folders...")
     game_folders = get_games_from_db(config, database)
-    for folder in game_folders:
-        logging.info(f"Updating {folder.name} ({folder.secret})...")
-        folder.sync()
-        folder.update_prefs()
-        # for debugging purposes
-        break
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+
+        def process_folder(folder):
+            logging.info(f"[{folder.name}] processing...")
+            folder.sync()
+            folder.update_prefs()
+            return folder.name
+
+        # Submit all folders for parallel processing
+        futures = [
+            executor.submit(process_folder, folder) for folder in game_folders
+        ]
+
+        # Wait for all tasks to complete
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                folder_name = future.result()
+                logging.debug(f"[{folder_name}] completed")
+            except Exception as e:
+                logging.error(f"Error processing folder: {e}")
 
     if not config.keep_discarded_games:
         logging.info("Removing discarded game folders...")
@@ -119,14 +136,31 @@ def cleanup(config: Configuration) -> None:
         game_folders = get_games_from_db(config, database)
         game_folders += get_discarded_from_db(config, database)
 
-        for folder in game_folders:
-            logging.info(f"Removing {folder.name} ({folder.secret})...")
-            folder.remove()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
 
-            # Remove local folder if it exists
-            folder_path = os.path.join(config.sync_dir, folder.id)
-            if os.path.exists(folder_path):
-                shutil.rmtree(folder_path)
+            def process_folder(folder):
+                logging.info(f"[{folder.name}] processing...")
+                folder.remove()
+
+                # Remove local folder if it exists
+                folder_path = os.path.join(config.sync_dir, folder.id)
+                if os.path.exists(folder_path):
+                    shutil.rmtree(folder_path)
+                return folder.name
+
+            # Submit all folders for parallel processing
+            futures = [
+                executor.submit(process_folder, folder)
+                for folder in game_folders
+            ]
+
+            # Wait for all tasks to complete
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    folder_name = future.result()
+                    logging.debug(f"[{folder_name}] completed")
+                except Exception as e:
+                    logging.error(f"Error processing folder: {e}")
 
 
 def get_eti_database(config: Configuration) -> Path:
