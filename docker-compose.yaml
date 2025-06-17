@@ -1,0 +1,18 @@
+# Develpopment environment
+
+services:
+  resilio:
+    image: linuxserver/resilio-sync:2.8.1
+    container_name: sync-server-resilio
+    ports:
+      - 8080:8080
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: Europe/Berlin
+    volumes:
+      - "./deploy/resilio-config.conf:/config/sync.conf"
+      - "sync-volume:/sync:z"
+
+volumes:
+  sync-volume:

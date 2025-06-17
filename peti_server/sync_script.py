@@ -10,11 +10,123 @@ import logging
 import os
 import shutil
 import sqlite3
-import time
+import tarfile
 from pathlib import Path
 
-from peti_server.models import (Configuration, SyncFolder,
-                                ETI_LAUNCHER_DATABASE_PATH, LOCAL_DB_NAME)
+import requests
+
+from peti_server.models import (Configuration, SyncFolder)
+
+ETI_SYNC_SERVER_DOWNLOAD_URL = "https://www.eti-lan.xyz/sync_server.tar"
+ETI_LAUNCHER_DATABASE_PATH = "eti_launcher/update/game.db"
+LOCAL_DB_NAME = "game.db"
+
+
+def main():
+    # Configure logging
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s - %(levelname)s - %(message)s')
+
+    parser = argparse.ArgumentParser(
+        description='pETI Sync Server - Python Implementation')
+    parser.add_argument('action',
+                        choices=['update', 'cleanup'],
+                        help='Action to perform')
+    parser.add_argument('--config',
+                        default='/root/eti-config.yaml',
+                        help='Path to the configuration file')
+    parser.add_argument('--keep_discarded_games',
+                        action='store_true',
+                        help='Dont remove discarded games from sync')
+
+    args = parser.parse_args()
+
+    config = Configuration(args.config, args.keep_discarded_games)
+
+    if args.action == 'update':
+        update_game_folders(config)
+    elif args.action == 'cleanup':
+        cleanup(config)
+
+
+def update_game_folders(config: Configuration) -> None:
+    """
+    Handles the start operation for the sync server
+
+    Args:
+        config: Configuration object containing sync settings
+    """
+
+    # Try to prepare the ETI database
+    try:
+        database = get_eti_database(config)
+    except FileNotFoundError:
+        logging.error(
+            "ETI Database file not found. Downloading initial database...")
+        download_initial_game_db(config)
+        database = get_eti_database(config)
+
+    # Add the core system folders
+    system_folders = []
+    for folder_name, values in config.get_folders().items():
+        system_folders.append(
+            SyncFolder(config, folder_name, secret=values.get('secret', ''))),
+
+    logging.info("Add/Updated system folders...")
+    # Sync the system folders
+    for folder in system_folders:
+        folder.sync()
+
+    # Process all game folders
+    logging.info("Add/Updated game folders...")
+    game_folders = get_games_from_db(config, database)
+    for folder in game_folders:
+        logging.info(f"Updating {folder.name} ({folder.secret})...")
+        folder.sync()
+        folder.update_prefs()
+        # for debugging purposes
+        break
+
+    if not config.keep_discarded_games:
+        logging.info("Removing discarded game folders...")
+        removed_folders = get_discarded_from_db(config, database)
+
+        # Remove discarded folders
+        for folder in removed_folders:
+            logging.info(f"Removing {folder.name} ({folder.secret})...")
+            folder.remove()
+
+            # Remove local folder if it exists
+            folder_path = os.path.join(config.sync_dir, folder.id)
+            if os.path.exists(folder_path):
+                shutil.rmtree(folder_path)
+
+    logging.info("Game folders updated on sync server.")
+
+
+def cleanup(config: Configuration) -> None:
+    """
+    Handles the cleanup operation, removing synchronized data
+
+    Args:
+        config: Configuration object containing sync settings
+    """
+    response = input("Should all synchronized data be removed? [yes|no] ")
+    if response.lower() == "yes":
+
+        # Remove all known game folders
+        database = get_eti_database(config)
+        game_folders = get_games_from_db(config, database)
+        game_folders += get_discarded_from_db(config, database)
+
+        for folder in game_folders:
+            logging.info(f"Removing {folder.name} ({folder.secret})...")
+            folder.remove()
+
+            # Remove local folder if it exists
+            folder_path = os.path.join(config.sync_dir, folder.id)
+            if os.path.exists(folder_path):
+                shutil.rmtree(folder_path)
 
 
 def get_eti_database(config: Configuration) -> Path:
@@ -117,99 +229,51 @@ def get_discarded_from_db(config: Configuration, db_path: Path) -> list:
     return removed_folders
 
 
-def update_game_folders(config: Configuration) -> None:
+def download_initial_game_db(config: Configuration) -> None:
     """
-    Handles the start operation for the sync server
+    Downloads the initial game database from the sync server.
 
     Args:
         config: Configuration object containing sync settings
     """
 
-    # Add the core system folders
-    system_folders = []
-    for folder_name, values in config.get_folders().items():
-        system_folders.append(
-            SyncFolder(config, folder_name, secret=values.get('secret', ''))),
+    logging.info("Downloading initial game database...")
 
-    # Sync the system folders
-    for folder in system_folders:
-        folder.sync()
+    try:
+        response = requests.get(ETI_SYNC_SERVER_DOWNLOAD_URL,
+                                allow_redirects=True)
+        dl_path = Path(config.data_dir) / "download"
+        tar_path = dl_path / Path(ETI_SYNC_SERVER_DOWNLOAD_URL).name
 
-    game_folders = get_games_from_db(config, get_eti_database(config))
+        # Write the tar file to disk
+        dl_path.mkdir(parents=True, exist_ok=True)
+        with open(tar_path, "wb") as f:
+            f.write(response.content)
 
-    # Process all game folders
-    for folder in game_folders:
-        logging.info(f"Updating {folder.secret} ({folder.name})...")
-        folder.sync()
-        folder.update_prefs()
-        time.sleep(1)
+        # Extract games database
+        downloaded_db = Path(config.data_dir) / LOCAL_DB_NAME
+        with tarfile.open(tar_path, "r") as tar:
+            for member in tar.getmembers():
+                if member.name.endswith(LOCAL_DB_NAME):
+                    tar.extract(member, path=dl_path, filter='data')
+                    shutil.move(dl_path / member.path.lstrip('/'),
+                                downloaded_db)
+                    break
+        # Clean up
+        shutil.rmtree(dl_path, ignore_errors=True)
 
-    if not config.keep_discarded_games:
-        removed_folders = get_discarded_from_db(config,
-                                                get_eti_database(config))
-
-        # Remove discarded folders
-        for folder in removed_folders:
-            logging.info(f"Removing {folder.secret} ({folder.id})...")
-            folder.remove()
-            time.sleep(1)
-
-            # Remove local folder if it exists
-            folder_path = os.path.join(config.sync_dir, folder.id)
-            if os.path.exists(folder_path):
-                shutil.rmtree(folder_path)
-
-    logging.info("Game folders updated on sync server.")
-
-
-def cleanup(config: Configuration) -> None:
-    """
-    Handles the cleanup operation, removing synchronized data
-
-    Args:
-        config: Configuration object containing sync settings
-    """
-    response = input("Should all synchronized data be removed? [yes|no] ")
-    if response.lower() == "yes":
-
-        # Remove all files in sync directory
-        try:
-            for item in Path(config.sync_dir).glob("*"):
-                if item.is_file():
-                    item.unlink()
-                else:
-                    shutil.rmtree(item)
-            logging.info("Cleanup completed.")
-        except Exception as e:
-            logging.error(f"Error during cleanup: {e}")
-
-
-def main():
-    """Main entry point for the script"""
-    # Configure logging
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s - %(levelname)s - %(message)s')
-
-    parser = argparse.ArgumentParser(
-        description='pETI Sync Server - Python Implementation')
-    parser.add_argument('action',
-                        choices=['update', 'stop', 'cleanup', 'update_keys'],
-                        help='Action to perform')
-    parser.add_argument('--config',
-                        default='/root/eti-config.yaml',
-                        help='Path to the configuration file')
-    parser.add_argument('--keep_discarded_games',
-                        action='store_true',
-                        help='Dont remove discarded games from sync')
-
-    args = parser.parse_args()
-
-    config = Configuration(args.config, args.keep_discarded_games)
-
-    if args.action == 'update':
-        update_game_folders(config)
-    elif args.action == 'cleanup':
-        cleanup(config)
+        if downloaded_db.exists():
+            logging.info(
+                f"Initial game database downloaded to {downloaded_db}")
+        else:
+            logging.error(
+                f"Download failed: {LOCAL_DB_NAME} not found in tarball.")
+    except requests.RequestException as e:
+        logging.error(f"Error downloading initial game database: {e}")
+        raise
+    except tarfile.TarError as e:
+        logging.error(f"Error extracting tar file: {e}")
+        raise
 
 
 if __name__ == "__main__":

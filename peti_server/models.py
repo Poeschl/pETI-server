@@ -3,7 +3,7 @@ Models for pETI Sync Server
 
 Contains the configuration and sync folder classes for the sync server.
 """
-
+import json
 import logging
 import sys
 from enum import Enum
@@ -16,9 +16,6 @@ import yaml
 API_URL_BASE = "http://{host}/api?method={method}"
 API_FOLDER_URL = API_URL_BASE + "&dir={dir}&secret={secret}&{options}"
 API_SIMPLE_URL = API_URL_BASE + "&dir={dir}&{options}"
-
-ETI_LAUNCHER_DATABASE_PATH = "eti_launcher/update/game.db"
-LOCAL_DB_NAME = "game.db"
 
 
 class ApiMethod(Enum):
@@ -119,6 +116,10 @@ class SyncFolder:
         """Remove this folder from the sync system"""
         return self._make_sync_request(ApiMethod.REMOVE_FOLDER, force=True)
 
+    def __repr__(self):
+        """String representation of the sync folder"""
+        return f"SyncFolder(name={self.name}, id={self.id})"
+
     def _make_sync_request(self,
                            method: ApiMethod,
                            force: bool = False) -> bool:
@@ -155,9 +156,26 @@ class SyncFolder:
                                           self.config.password))
             response.raise_for_status()
 
-            action = "removed" if method == ApiMethod.REMOVE_FOLDER else "added or updated"
+            if method == ApiMethod.REMOVE_FOLDER:
+                action = "removed"
+            elif method == ApiMethod.ADD_FOLDER:
+                action = "added/updated"
+            elif method == ApiMethod.SET_FOLDER_PREFS:
+                action = "preferences updated"
+            else:
+                action = "processed (unknown method)"
+
+            json_response = response.json()
+            sync_message = json_response.get('message', '')
+            sync_error = json_response.get('error', '')
+
+            # Map some error codes to more readable messages
+            if sync_error == '3':
+                sync_message = "Folder is not known"
+
             logging.info(
-                f"Folder '{self.name}' {action}: {response.status_code}")
+                f"Folder '{self.name}' {action}. Errorcode: {sync_error} - '{sync_message}'"
+            )
             return True
 
         except requests.exceptions.RequestException as e:
