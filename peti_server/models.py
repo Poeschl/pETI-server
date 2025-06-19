@@ -70,6 +70,11 @@ class Configuration:
         """Get synchronization options"""
         return self._config.get('resilio_sync_options', '')
 
+    @property
+    def game_deny_list(self) -> list:
+        """Gibt die Spiele-Denylist aus der Konfiguration zurück"""
+        return self._yaml.get('games', {}).get('denylist', [])
+
     def get_folders(self) -> Dict[str, Dict[str, str]]:
         """Get all folder configurations"""
         return self._yaml.get('folders', {})
@@ -173,7 +178,7 @@ class SyncFolder:
             if sync_error == 3:
                 sync_message = "Folder is not known"
 
-            log_message = f"[{self.name}] {action}"
+            log_message = f"[{self.name}|{self.id}] {action}"
             if sync_error != 0:
                 log_message += f": '{sync_message}' ({sync_error})"
             logging.info(log_message)

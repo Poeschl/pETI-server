@@ -4,13 +4,13 @@ resilio_auth:
   user: user
   password: dummy
 
-resilio_host: resilio:8080
+resilio_host: localhost:8080
 resilio_sync_dir: /sync
 # Don't change the options if you are not sure what you are doing.
 resilio_sync_options: "force=1&search_lan=1&use_dht=1&use_hosts=1&overwrite_changes=1&folder_deletetotrash=0&use_sync_trash=0"
 
 # This folder will be used to store the games database and other files
-data_dir: /root
+data_dir: ./env/data
 
 # Static folder keys
 # Add your own folder, if needed. the default will be sufficient for the eti sync-server
@@ -19,6 +19,6 @@ folders:
     secret: "BICDWADB4KCVNR6FCAGYTHEKZBYVUGTZX"
 
 games:
-  # A list of games that should not be loaded by the pETI Sync Server, specified by their folder ids.
   denylist:
-    - "do not load"
+    - "human"
+    - "pummel"
