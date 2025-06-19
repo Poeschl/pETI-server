@@ -74,26 +74,36 @@ def update_game_folders(config: Configuration) -> None:
         system_folders.append(
             SyncFolder(config, folder_name, secret=values.get('secret', ''))),
 
-    logging.info("Add/Updated system tools...")
+    logging.info("\n================================")
+    logging.info("Add/Update system tools...")
     # Sync the system folders
     for folder in system_folders:
         folder.sync()
 
     # Process all game folders
+    logging.info("\n================================")
     logging.info("Prepare lists of games...")
 
     allow_list = get_games_from_db(config, database)
     deny_list = get_discarded_from_db(config, database)
 
+    denied_folder_ids = set(config.game_deny_list)
+    moved_to_deny = [folder for folder in allow_list if folder.id in denied_folder_ids]
+    allow_list = [folder for folder in allow_list if folder.id not in denied_folder_ids]
+    for folder in moved_to_deny:
+        logging.info(f"Move game {folder.name}|{folder.id} to deny list...")
+        deny_list.append(folder)
+
     logging.info(f"Found {len(allow_list)} allowed games to sync.")
     logging.info(
-        f"Found {len(deny_list)} discarded games to remove if existing.")
+        f"Found {len(deny_list)} games to remove if existing.")
 
+    logging.info("\n================================")
     logging.info("Synchronizing allowed games...")
     with concurrent.futures.ThreadPoolExecutor() as executor:
 
         def process_folder(folder):
-            logging.info(f"[{folder.name}] processing...")
+            logging.info(f"[{folder.name}|{folder.id}] processing...")
             folder.sync()
             folder.update_prefs()
             return folder.name
@@ -112,6 +122,7 @@ def update_game_folders(config: Configuration) -> None:
                 logging.error(f"Error processing: {e}")
 
     if not config.keep_discarded_games:
+        logging.info("\n================================")
         logging.info("Removing denied games...")
 
         # Remove discarded folders
@@ -124,6 +135,7 @@ def update_game_folders(config: Configuration) -> None:
             if os.path.exists(folder_path):
                 shutil.rmtree(folder_path)
 
+    logging.info("\n================================")
     logging.info("Games synchronized")
 
 
@@ -132,7 +144,7 @@ def cleanup(config: Configuration) -> None:
     Handles the cleanup operation, removing synchronized data
 
     Args:
-        config: Configuration object containing sync settings
+        config: Configuration object containing sync s++ettings
     """
     response = input("Should all synchronized data be removed? [yes|no] ")
     if response.lower() == "yes":
@@ -145,7 +157,7 @@ def cleanup(config: Configuration) -> None:
         with concurrent.futures.ThreadPoolExecutor() as executor:
 
             def process_folder(folder):
-                logging.info(f"[{folder.name}] processing...")
+                logging.info(f"[{folder.name}|{folder.id}] processing...")
                 folder.remove()
 
                 # Remove local folder if it exists
