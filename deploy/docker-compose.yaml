@@ -6,7 +6,7 @@ services:
     depends_on:
       - resilio
     volumes:
-      - "./eti-config.yaml:/root/eti-config.yaml"
+      - "./eti-config.yaml:/app/eti-config.yaml"
       - "sync-volume:/sync:z"
 
   resilio:

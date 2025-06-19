@@ -35,7 +35,7 @@ def main():
                         choices=['update', 'cleanup'],
                         help='Action to perform')
     parser.add_argument('--config',
-                        default='/root/eti-config.yaml',
+                        default='/app/eti-config.yaml',
                         help='Path to the configuration file')
     parser.add_argument('--keep_discarded_games',
                         action='store_true',
@@ -88,15 +88,18 @@ def update_game_folders(config: Configuration) -> None:
     deny_list = get_discarded_from_db(config, database)
 
     denied_folder_ids = set(config.game_deny_list)
-    moved_to_deny = [folder for folder in allow_list if folder.id in denied_folder_ids]
-    allow_list = [folder for folder in allow_list if folder.id not in denied_folder_ids]
+    moved_to_deny = [
+        folder for folder in allow_list if folder.id in denied_folder_ids
+    ]
+    allow_list = [
+        folder for folder in allow_list if folder.id not in denied_folder_ids
+    ]
     for folder in moved_to_deny:
         logging.info(f"Move game {folder.name}|{folder.id} to deny list...")
         deny_list.append(folder)
 
     logging.info(f"Found {len(allow_list)} allowed games to sync.")
-    logging.info(
-        f"Found {len(deny_list)} games to remove if existing.")
+    logging.info(f"Found {len(deny_list)} games to remove if existing.")
 
     logging.info("\n================================")
     logging.info("Synchronizing allowed games...")
