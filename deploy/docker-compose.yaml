@@ -13,14 +13,22 @@ services:
     image: linuxserver/resilio-sync:2.8.1
     restart: unless-stopped
     container_name: sync-server-resilio
-    ports:
-      - 8080:8080
-      - 55555:55555
+    # Use the host network to be able to send multi/broadcast
+    network_mode: host
+    # Keep the log footprint manageable
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       PUID: 1000
       PGID: 1000
       TZ: Europe/Berlin
+      # Set to `false` to disable new connections
+      IS_ONLINE: "true"
     volumes:
+      - "./resilio-offline-config:/etc/cont-init.d/10-resilio-offline-config:ro"
       - "./resilio-config.conf:/config/sync.conf"
       - "sync-volume:/sync:z"
 

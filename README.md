@@ -8,15 +8,13 @@ I try to keep it as close to the official server as possible, so that you can us
 # Changes / Additions
 
 The main difference to the official server is that it runs only in a docker environment.
-With this you need to set up your firewall and ports on your own, but you don't need a VM anymore.
-
-It will also automatically update the folders with the games you have in your eti lan-launcher, so you don't need to manually add them to the server.
 
 The additional features are:
 
 * configuration as yaml file
 * completely running in containers
-* (soon™️) an own web interface to manage the game folders (denylist, allowlist, etc.)
+* deny list for games which should not be synced in config file
+* "Offline mode" which disables Resilio's trackers to disable downloading from new peers
 
 # Usage
 
