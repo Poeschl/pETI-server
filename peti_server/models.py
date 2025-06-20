@@ -17,6 +17,9 @@ API_URL_BASE = "http://{host}/api?method={method}"
 API_FOLDER_URL = API_URL_BASE + "&dir={dir}&secret={secret}&{options}"
 API_SIMPLE_URL = API_URL_BASE + "&dir={dir}&{options}"
 
+MAX_WAIT_SECONDS = 120
+RETRY_INTERVAL_SECONDS = 10
+
 
 class ApiMethod(Enum):
     """API method endpoints for Resilio Sync"""
@@ -155,12 +158,26 @@ class SyncFolder:
 
             if force:
                 url += "&force=1"
-
-            response = requests.get(url,
-                                    auth=(self.config.user,
-                                          self.config.password))
-            response.raise_for_status()
-
+            import time
+            start_time = time.time()
+            while True:
+                try:
+                    response = requests.get(url,
+                                            auth=(self.config.user,
+                                                  self.config.password))
+                    response.raise_for_status()
+                    break
+                except requests.exceptions.ConnectionError as e:
+                    if time.time() - start_time > MAX_WAIT_SECONDS:
+                        raise RuntimeError(
+                            f"Server not reachable after {MAX_WAIT_SECONDS} seconds."
+                        ) from e
+                    logging.info(
+                        f"Server not reachable, retrying in {RETRY_INTERVAL_SECONDS} seconds..."
+                    )
+                    time.sleep(RETRY_INTERVAL_SECONDS)
+                except Exception:
+                    raise
             if method == ApiMethod.REMOVE_FOLDER:
                 action = "removed"
             elif method == ApiMethod.ADD_FOLDER:
