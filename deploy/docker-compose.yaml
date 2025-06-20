@@ -28,8 +28,8 @@ services:
       # Set to `false` to disable new connections
       IS_ONLINE: "true"
     volumes:
-      - "./resilio-offline-config:/etc/cont-init.d/10-resilio-offline-config:ro"
-      - "./resilio-config.conf:/config/sync.conf"
+      - "./resilio-offline-config.sh:/etc/cont-init.d/10-resilio-offline-config:ro"
+      - "./resilio-config.conf:/config/sync-base.conf"
       - "sync-volume:/sync:z"
 
 volumes:
