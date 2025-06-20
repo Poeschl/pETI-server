@@ -1,0 +1,48 @@
+name: Release latest Docker image
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  image:
+    name: Build Docker release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ℹ️ Docker meta
+        id: docker-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/poeschl/peti-server
+          tags: latest
+
+      - name: 🏗️ Install qemu dependency
+        uses: docker/setup-qemu-action@v3
+
+      - name: ⚙️ Build Image
+        id: build-image
+        uses: redhat-actions/buildah-build@v2
+        with:
+          containerfiles: backend/Dockerfile
+          context: backend
+          tags: ${{ steps.docker-meta.outputs.tags }}
+          labels: ${{ steps.docker-meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          # Disable layer caching
+          layers: false
+
+      - name: 🔑 GHCR Login
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🚀 Push images
+        id: push-image
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build-image.outputs.image }}
+          tags: ${{ steps.build-image.outputs.tags }}
