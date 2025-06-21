@@ -15,4 +15,5 @@ ENV PYTHONUNBUFFERED=1
 COPY --from=build /app/.venv /app/.venv
 COPY peti_server/*.py /app/peti_server/
 
-ENTRYPOINT ["/app/.venv/bin/python", "/app/peti_server/sync_script.py", "update"]
+ENTRYPOINT ["/app/.venv/bin/python", "/app/peti_server/sync_script.py"]
+CMD ["update"]
