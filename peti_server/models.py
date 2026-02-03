@@ -26,6 +26,7 @@ class ApiMethod(Enum):
     ADD_FOLDER = 'add_folder'
     REMOVE_FOLDER = 'remove_folder'
     SET_FOLDER_PREFS = 'set_folder_prefs'
+    SET_FOLDER_HOSTS = 'set_folder_hosts'
     SHUTDOWN = 'shutdown'
 
 
@@ -78,6 +79,11 @@ class Configuration:
         """Gibt die Spiele-Denylist aus der Konfiguration zurück"""
         return self._yaml.get('games', {}).get('denylist', [])
 
+    @property
+    def game_predefined_hosts(self) -> list:
+        """Get the predefined hosts list for game folders"""
+        return self._yaml.get('games', {}).get('predefined_hosts', [])
+
     def get_folders(self) -> Dict[str, Dict[str, str]]:
         """Get all folder configurations"""
         return self._yaml.get('folders', {})
@@ -120,6 +126,12 @@ class SyncFolder:
         """Update preferences for this folder"""
         return self._make_sync_request(ApiMethod.SET_FOLDER_PREFS)
 
+    def set_hosts(self, hosts: list) -> bool:
+        """Set predefined hosts for this folder"""
+        if not hosts:
+            return True  # If list is empty, don't set any hosts
+        return self._make_sync_request(ApiMethod.SET_FOLDER_HOSTS, hosts=hosts)
+
     def remove(self) -> bool:
         """Remove this folder from the sync system"""
         return self._make_sync_request(ApiMethod.REMOVE_FOLDER, force=True)
@@ -130,13 +142,15 @@ class SyncFolder:
 
     def _make_sync_request(self,
                            method: ApiMethod,
-                           force: bool = False) -> bool:
+                           force: bool = False,
+                           hosts: list = None) -> bool:
         """
         Make a sync-related API request
 
         Args:
             method: API method to use
             force: Whether to add force=1 parameter
+            hosts: List of predefined hosts (for SET_FOLDER_HOSTS method)
 
         Returns:
             bool: True if successful, False if failed
@@ -158,6 +172,12 @@ class SyncFolder:
 
             if force:
                 url += "&force=1"
+            
+            # Add hosts parameter for SET_FOLDER_HOSTS method
+            if method == ApiMethod.SET_FOLDER_HOSTS and hosts:
+                hosts_param = ",".join(hosts)
+                url += f"&hosts={hosts_param}"
+            
             import time
             start_time = time.time()
             while True:
@@ -184,6 +204,8 @@ class SyncFolder:
                 action = "added or updated"
             elif method == ApiMethod.SET_FOLDER_PREFS:
                 action = "preferences updated"
+            elif method == ApiMethod.SET_FOLDER_HOSTS:
+                action = "hosts set"
             else:
                 action = "processed (unknown method)"
 

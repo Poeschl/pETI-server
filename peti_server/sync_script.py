@@ -103,12 +103,19 @@ def update_game_folders(config: Configuration) -> None:
 
     logging.info("\n================================")
     logging.info("Synchronizing allowed games...")
+    
+    # Get predefined hosts from config
+    predefined_hosts = config.game_predefined_hosts
+    
     with concurrent.futures.ThreadPoolExecutor() as executor:
 
         def process_folder(folder):
             logging.info(f"[{folder.name}|{folder.id}] processing...")
             folder.sync()
             folder.update_prefs()
+            # Set predefined hosts if configured
+            if predefined_hosts:
+                folder.set_hosts(predefined_hosts)
             return folder.name
 
         # Submit all folders for parallel processing

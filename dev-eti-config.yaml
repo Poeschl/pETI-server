@@ -22,3 +22,9 @@ games:
   denylist:
     - "human"
     - "pummel"
+  # Predefined hosts for all game folders (optional)
+  # If specified, these IP:port addresses will be used as direct peers for game sync
+  # If empty or not specified, no predefined hosts will be set
+  # predefined_hosts:
+  #   - "192.168.1.10:8888"
+  #   - "10.0.0.5:55555"
