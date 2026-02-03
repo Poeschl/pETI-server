@@ -60,10 +60,8 @@ def validate_hosts(hosts: list) -> list:
             )
         
         # Additional check: port must be in valid range
-        try:
-            port_str = host.split(':')[-1]
-        except IndexError:
-            raise ValueError(f"Invalid host format '{host}': missing port")
+        # split() always returns a list, so IndexError is not possible here
+        port_str = host.split(':')[-1]
         
         try:
             port = int(port_str)
@@ -253,8 +251,10 @@ class SyncFolder:
             if method == ApiMethod.SET_FOLDER_HOSTS and hosts:
                 # Hosts are already validated at this point
                 hosts_param = ",".join(hosts)
-                # URL encode the hosts parameter, but keep commas as separators
-                # The API expects comma-separated host:port pairs
+                # URL encode the hosts parameter for GET request
+                # - Commas remain literal (safe=',') as they separate multiple hosts
+                # - Colons are encoded as %3A (required for URL query parameters)
+                # - This is the correct format for Resilio Sync API GET requests
                 url += f"&hosts={quote(hosts_param, safe=',')}"
             
             import time

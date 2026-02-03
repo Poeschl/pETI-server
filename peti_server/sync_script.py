@@ -104,15 +104,16 @@ def update_game_folders(config: Configuration) -> None:
     logging.info("\n================================")
     logging.info("Synchronizing allowed games...")
     
-    # Get predefined hosts from config and validate
+    # Get predefined hosts from config
     predefined_hosts = config.game_predefined_hosts
     if predefined_hosts:
+        # Quick type check to fail fast if config is wrong
         if not isinstance(predefined_hosts, list):
             logging.error(
                 f"Invalid predefined_hosts configuration: expected list, got {type(predefined_hosts)}"
             )
             predefined_hosts = []
-        else:
+        elif predefined_hosts:  # Only log if list is not empty
             logging.info(f"Using predefined hosts: {', '.join(predefined_hosts)}")
     
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -122,6 +123,7 @@ def update_game_folders(config: Configuration) -> None:
             folder.sync()
             folder.update_prefs()
             # Set predefined hosts if configured
+            # Validation happens inside set_hosts() via validate_hosts()
             if predefined_hosts:
                 try:
                     folder.set_hosts(predefined_hosts)
