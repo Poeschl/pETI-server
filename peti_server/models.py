@@ -5,9 +5,11 @@ Contains the configuration and sync folder classes for the sync server.
 """
 import json
 import logging
+import re
 import sys
 from enum import Enum
 from typing import Dict
+from urllib.parse import quote
 
 import requests
 import yaml
@@ -19,6 +21,50 @@ API_SIMPLE_URL = API_URL_BASE + "&dir={dir}&{options}"
 
 MAX_WAIT_SECONDS = 120
 RETRY_INTERVAL_SECONDS = 10
+
+# Regex pattern for validating host:port format
+# Matches IP:port or hostname:port (basic validation)
+HOST_PORT_PATTERN = re.compile(r'^[a-zA-Z0-9\.\-]+:\d+$')
+
+
+def validate_hosts(hosts: list) -> list:
+    """
+    Validate a list of hosts in 'host:port' format.
+    
+    Args:
+        hosts: List of host strings to validate
+        
+    Returns:
+        List of validated hosts
+        
+    Raises:
+        ValueError: If any host is invalid
+    """
+    if not isinstance(hosts, list):
+        raise ValueError(f"hosts must be a list, got {type(hosts)}")
+    
+    validated_hosts = []
+    for host in hosts:
+        if not isinstance(host, str):
+            raise ValueError(f"Each host must be a string, got {type(host)}")
+        
+        # Validate format
+        if not HOST_PORT_PATTERN.match(host):
+            raise ValueError(
+                f"Invalid host format '{host}'. Expected format: 'hostname:port' or 'IP:port'"
+            )
+        
+        # Additional check: port must be in valid range
+        try:
+            port = int(host.split(':')[-1])
+            if port < 1 or port > 65535:
+                raise ValueError(f"Port {port} in '{host}' is out of valid range (1-65535)")
+        except (ValueError, IndexError) as e:
+            raise ValueError(f"Invalid port in host '{host}': {e}")
+        
+        validated_hosts.append(host)
+    
+    return validated_hosts
 
 
 class ApiMethod(Enum):
@@ -127,10 +173,29 @@ class SyncFolder:
         return self._make_sync_request(ApiMethod.SET_FOLDER_PREFS)
 
     def set_hosts(self, hosts: list) -> bool:
-        """Set predefined hosts for this folder"""
+        """
+        Set predefined hosts for this folder
+        
+        Args:
+            hosts: List of host strings in 'hostname:port' or 'IP:port' format
+            
+        Returns:
+            bool: True if successful or if list is empty
+            
+        Raises:
+            ValueError: If hosts list contains invalid entries
+        """
         if not hosts:
             return True  # If list is empty, don't set any hosts
-        return self._make_sync_request(ApiMethod.SET_FOLDER_HOSTS, hosts=hosts)
+        
+        # Validate hosts before making request
+        try:
+            validated_hosts = validate_hosts(hosts)
+        except ValueError as e:
+            logging.error(f"Invalid hosts configuration: {e}")
+            raise
+        
+        return self._make_sync_request(ApiMethod.SET_FOLDER_HOSTS, hosts=validated_hosts)
 
     def remove(self) -> bool:
         """Remove this folder from the sync system"""
@@ -175,8 +240,10 @@ class SyncFolder:
             
             # Add hosts parameter for SET_FOLDER_HOSTS method
             if method == ApiMethod.SET_FOLDER_HOSTS and hosts:
+                # Hosts are already validated at this point
                 hosts_param = ",".join(hosts)
-                url += f"&hosts={hosts_param}"
+                # URL encode the hosts parameter to prevent injection
+                url += f"&hosts={quote(hosts_param, safe='')}"
             
             import time
             start_time = time.time()
