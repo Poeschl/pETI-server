@@ -23,8 +23,13 @@ MAX_WAIT_SECONDS = 120
 RETRY_INTERVAL_SECONDS = 10
 
 # Regex pattern for validating host:port format
-# Matches IP:port or hostname:port (basic validation)
-HOST_PORT_PATTERN = re.compile(r'^[a-zA-Z0-9\.\-]+:\d+$')
+# Matches valid hostnames/IPs with port numbers
+# Hostname: alphanumeric with hyphens, dots to separate labels
+# IPv4: basic pattern (detailed validation done separately if needed)
+HOST_PORT_PATTERN = re.compile(
+    r'^([a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?)*|'
+    r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):\d+$'
+)
 
 
 def validate_hosts(hosts: list) -> list:
@@ -56,11 +61,17 @@ def validate_hosts(hosts: list) -> list:
         
         # Additional check: port must be in valid range
         try:
-            port = int(host.split(':')[-1])
-            if port < 1 or port > 65535:
-                raise ValueError(f"Port {port} in '{host}' is out of valid range (1-65535)")
-        except (ValueError, IndexError) as e:
-            raise ValueError(f"Invalid port in host '{host}': {e}")
+            port_str = host.split(':')[-1]
+        except IndexError:
+            raise ValueError(f"Invalid host format '{host}': missing port")
+        
+        try:
+            port = int(port_str)
+        except ValueError:
+            raise ValueError(f"Invalid port in host '{host}': port must be a valid integer")
+        
+        if port < 1 or port > 65535:
+            raise ValueError(f"Port {port} in '{host}' is out of valid range (1-65535)")
         
         validated_hosts.append(host)
     
@@ -122,7 +133,7 @@ class Configuration:
 
     @property
     def game_deny_list(self) -> list:
-        """Gibt die Spiele-Denylist aus der Konfiguration zurück"""
+        """Returns the game denylist from the configuration"""
         return self._yaml.get('games', {}).get('denylist', [])
 
     @property
@@ -242,8 +253,9 @@ class SyncFolder:
             if method == ApiMethod.SET_FOLDER_HOSTS and hosts:
                 # Hosts are already validated at this point
                 hosts_param = ",".join(hosts)
-                # URL encode the hosts parameter to prevent injection
-                url += f"&hosts={quote(hosts_param, safe='')}"
+                # URL encode the hosts parameter, but keep commas as separators
+                # The API expects comma-separated host:port pairs
+                url += f"&hosts={quote(hosts_param, safe=',')}"
             
             import time
             start_time = time.time()
