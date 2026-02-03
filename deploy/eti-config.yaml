@@ -7,7 +7,7 @@ resilio_auth:
 resilio_host: resilio:8080
 resilio_sync_dir: /sync
 # Don't change the options if you are not sure what you are doing.
-resilio_sync_options: "force=1&search_lan=1&use_dht=1&use_hosts=1&overwrite_changes=1&folder_deletetotrash=0&use_sync_trash=0"
+resilio_sync_options: "force=1&search_lan=1&use_hosts=1&overwrite_changes=1&folder_deletetotrash=0&use_sync_trash=0"
 
 # This folder will be used to store the games database and other files
 data_dir: /root
@@ -17,6 +17,17 @@ data_dir: /root
 folders:
   eti_launcher:
     secret: "BICDWADB4KCVNR6FCAGYTHEKZBYVUGTZX"
+
+# Predefined hosts for all game folders (optional)
+# If specified, these IP:port addresses will be used as direct peers for game sync.
+# To disable tracker servers when using predefined_hosts, set USE_PREDEFINED_HOSTS_ONLY=true in the docker-compose.yaml environment variables.
+# If empty or not specified, no predefined hosts will be set
+predefined_hosts:
+  []
+  # Below are some of eti public sync servers (No warranty on availability)
+  # - "66.206.5.74:3001"
+  # - "66.165.255.194:3001"
+  # - "66.165.255.194:3000"
 
 games:
   # A list of games that should not be loaded by the pETI Sync Server, specified by their folder ids.
