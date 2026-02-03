@@ -47,9 +47,15 @@ pETI-server/
   - `resilio_host`: Host and port for Resilio Sync API
   - `sync_dir`: Directory path for synchronized folders
   - `data_dir`: Directory for storing database and other files
-  - `sync_options`: Resilio Sync folder options
+  - `sync_options`: Resilio Sync folder options (note: `use_dht` is not supported by Resilio API and removed from default options)
   - `game_deny_list`: List of game folder IDs to exclude from sync
-  - `game_predefined_hosts`: List of predefined host:port pairs for direct peer connections
+  - `predefined_hosts`: List of predefined host:port pairs for direct peer connections
+
+**Important Notes on Tracker Servers:**
+- Tracker server usage is controlled at the Resilio Sync configuration level via `folder_defaults.use_tracker`, not via the API
+- To disable trackers when using `predefined_hosts`, set the environment variable `USE_PREDEFINED_HOSTS_ONLY=true` in the Docker deployment
+- This ensures that all folders use only direct peer connections through predefined hosts
+- The `resilio-offline-config.sh` script handles this configuration at container startup
 
 **SyncFolder Class**
 - Represents a folder to be synchronized
@@ -206,12 +212,13 @@ folders:
   folder_name:
     secret: "SECRET_KEY"
 
+predefined_hosts:
+  - "192.168.1.10:8888"
+  - "10.0.0.5:55555"
+
 games:
   denylist:
     - "game_id_to_exclude"
-  predefined_hosts:
-    - "192.168.1.10:8888"
-    - "10.0.0.5:55555"
 ```
 
 ## Important Notes

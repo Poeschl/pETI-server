@@ -27,6 +27,8 @@ services:
       TZ: Europe/Berlin
       # Set to `false` to disable new connections
       IS_ONLINE: "true"
+      # Set to `true` to disable trackers when using predefined_hosts (keeps relay servers active)
+      # USE_PREDEFINED_HOSTS_ONLY: "true"
     volumes:
       - "./resilio-offline-config.sh:/etc/cont-init.d/10-resilio-offline-config:ro"
       - "./resilio-config.conf:/config/sync-base.conf"

@@ -28,51 +28,52 @@ RETRY_INTERVAL_SECONDS = 10
 # IPv4: basic pattern (detailed validation done separately if needed)
 HOST_PORT_PATTERN = re.compile(
     r'^([a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?)*|'
-    r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):\d+$'
-)
+    r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):\d+$')
 
 
 def validate_hosts(hosts: list) -> list:
     """
     Validate a list of hosts in 'host:port' format.
-    
+
     Args:
         hosts: List of host strings to validate
-        
+
     Returns:
         List of validated hosts
-        
+
     Raises:
         ValueError: If any host is invalid
     """
     if not isinstance(hosts, list):
         raise ValueError(f"hosts must be a list, got {type(hosts)}")
-    
+
     validated_hosts = []
     for host in hosts:
         if not isinstance(host, str):
             raise ValueError(f"Each host must be a string, got {type(host)}")
-        
+
         # Validate format
         if not HOST_PORT_PATTERN.match(host):
             raise ValueError(
                 f"Invalid host format '{host}'. Expected format: 'hostname:port' or 'IP:port'"
             )
-        
+
         # Additional check: port must be in valid range
         # split() always returns a list, so IndexError is not possible here
         port_str = host.split(':')[-1]
-        
+
         try:
             port = int(port_str)
         except ValueError:
-            raise ValueError(f"Invalid port in host '{host}': port must be a valid integer")
-        
+            raise ValueError(
+                f"Invalid port in host '{host}': port must be a valid integer")
+
         if port < 1 or port > 65535:
-            raise ValueError(f"Port {port} in '{host}' is out of valid range (1-65535)")
-        
+            raise ValueError(
+                f"Port {port} in '{host}' is out of valid range (1-65535)")
+
         validated_hosts.append(host)
-    
+
     return validated_hosts
 
 
@@ -135,9 +136,9 @@ class Configuration:
         return self._yaml.get('games', {}).get('denylist', [])
 
     @property
-    def game_predefined_hosts(self) -> list:
+    def predefined_hosts(self) -> list:
         """Get the predefined hosts list for game folders"""
-        return self._yaml.get('games', {}).get('predefined_hosts', [])
+        return self._yaml.get('predefined_hosts', [])
 
     def get_folders(self) -> Dict[str, Dict[str, str]]:
         """Get all folder configurations"""
@@ -184,27 +185,28 @@ class SyncFolder:
     def set_hosts(self, hosts: list) -> bool:
         """
         Set predefined hosts for this folder
-        
+
         Args:
             hosts: List of host strings in 'hostname:port' or 'IP:port' format
-            
+
         Returns:
             bool: True if successful or if list is empty
-            
+
         Raises:
             ValueError: If hosts list contains invalid entries
         """
         if not hosts:
             return True  # If list is empty, don't set any hosts
-        
+
         # Validate hosts before making request
         try:
             validated_hosts = validate_hosts(hosts)
         except ValueError as e:
             logging.error(f"Invalid hosts configuration: {e}")
             raise
-        
-        return self._make_sync_request(ApiMethod.SET_FOLDER_HOSTS, hosts=validated_hosts)
+
+        return self._make_sync_request(ApiMethod.SET_FOLDER_HOSTS,
+                                       hosts=validated_hosts)
 
     def remove(self) -> bool:
         """Remove this folder from the sync system"""
@@ -246,7 +248,7 @@ class SyncFolder:
 
             if force:
                 url += "&force=1"
-            
+
             # Add hosts parameter for SET_FOLDER_HOSTS method
             if method == ApiMethod.SET_FOLDER_HOSTS and hosts:
                 # Hosts are already validated at this point
@@ -256,7 +258,7 @@ class SyncFolder:
                 # - Colons are encoded as %3A (required for URL query parameters)
                 # - This is the correct format for Resilio Sync API GET requests
                 url += f"&hosts={quote(hosts_param, safe=',')}"
-            
+
             import time
             start_time = time.time()
             while True:

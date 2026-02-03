@@ -15,6 +15,7 @@ The additional features are:
 * completely running in containers
 * deny list for games which should not be synced in config file
 * "Offline mode" which disables Resilio's trackers to disable downloading from new peers
+* Use pre-defined hosts for game folders downloads
 
 # Usage
 

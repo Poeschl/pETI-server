@@ -23,6 +23,13 @@ if [ "$IS_ONLINE" = "false" ]; then
     # Block tracker and relay information in hosts
     echo "127.0.0.1  config.resilio.com" >> /etc/hosts
 
+elif [ "$USE_PREDEFINED_HOSTS_ONLY" = "true" ]; then
+    echo "Predefined hosts only mode detected, disabling trackers but keeping relay servers"
+
+    # Disable trackers but keep relay servers for predefined hosts mode
+    sed -i 's/"folder_defaults.use_tracker":.*$/"folder_defaults.use_tracker": false,/g' "$CONFIG_FILE"
+    sed -i 's/"service_folders.use_tracker":.*$/"service_folders.use_tracker": false,/g' "$CONFIG_FILE"
+
 elif [ "$IS_ONLINE" = "true" ]; then
     echo "Online mode detected, configuring Resilio for internet connectivity"
 
