@@ -16,13 +16,13 @@ jobs:
 
       - name: ℹ️ Docker meta
         id: docker-meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/poeschl/peti-server
           tags: latest
 
       - name: 🏗️ Install qemu dependency
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: ⚙️ Build Image
         id: build-image
